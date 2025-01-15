@@ -243,8 +243,7 @@ class GUI(tk.Tk):
     def language_option_select(self, event=None):
         selected_option = self.language_selector.get()
         messagebox.showinfo("Grammar Checker", f"Please wait, this could take a while...")
-        self.checker = language_tool_python.LanguageTool(self.checker.language_codes[selected_option])
-        self.checker.check("Blank content with a mistaek")
+        self.checker.__init__(self.checker.language_codes[selected_option])
         messagebox.showinfo("Grammar Checker", f"Language {selected_option} selected!")
 
     def delay_checker(self):
