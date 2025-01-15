@@ -1,11 +1,12 @@
-import json
 import tkinter as tk
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 from tkinter import filedialog, messagebox
 import language_tool_python
+import threading
 
 language_codes = {
+    # germanic
     "English (US)": "en-US",
     "English (GB)": "en-GB",
     "English (Australia)": "en-AU",
@@ -14,6 +15,27 @@ language_codes = {
     "German": "de-DE",
     "German (Austria)": "de-AT",
     "German (Switzerland)": "de-CH",
+    "Dutch": "nl",
+    "Dutch (Netherlands)": "nl-NL",
+    "Dutch (Belgium)": "nl-BE",
+    "Danish": "da",
+    "Swedish": "sv",
+    "Norwegian": "no",
+    "Icelandic": "is",
+    
+    # slavic
+    "Ukrainian": "uk",
+    "Polish": "pl",
+    "Russian": "ru",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Czech": "cs",
+    "Croatian": "hr",
+    "Serbian": "sr",
+    "Bulgarian": "bg",
+    "Macedonian": "mk",
+
+    # romance
     "Spanish": "es",
     "Spanish (Spain)": "es-ES",
     "Spanish (Mexico)": "es-MX",
@@ -27,42 +49,30 @@ language_codes = {
     "Portuguese (Portugal)": "pt-PT",
     "Italian": "it",
     "Italian (Italy)": "it-IT",
-    "Dutch": "nl",
-    "Dutch (Netherlands)": "nl-NL",
-    "Dutch (Belgium)": "nl-BE",
-    "Russian": "ru",
+    "Catalan": "ca",
+    "Romanian": "ro",
+    
+    # chinese
     "Chinese (Simplified)": "zh-CN",
     "Chinese (Traditional)": "zh-TW",
-    "Japanese": "ja",
-    "Polish": "pl",
-    "Ukrainian": "uk",
-    "Catalan": "ca",
+    
+    # others
     "Esperanto": "eo",
-    "Danish": "da",
-    "Swedish": "sv",
-    "Norwegian": "no",
-    "Finnish": "fi",
     "Greek": "el",
-    "Romanian": "ro",
-    "Slovak": "sk",
-    "Slovenian": "sl",
-    "Czech": "cs",
-    "Croatian": "hr",
-    "Serbian": "sr",
-    "Bulgarian": "bg",
-    "Icelandic": "is",
+    "Finnish": "fi",
     "Irish": "ga",
     "Estonian": "et",
     "Lithuanian": "lt",
     "Latvian": "lv",
-    "Macedonian": "mk",
-    "Maltese": "mt",
     "Tagalog": "tl",
     "Hindi": "hi",
     "Bengali": "bn",
     "Malayalam": "ml",
     "Tamil": "ta",
-    "Telugu": "te"
+    "Telugu": "te",
+    "Bengali": "bn",
+    "Icelandic": "is",
+    "Maltese": "mt",
 }
 
 checker = language_tool_python.LanguageTool("en-US")
@@ -114,7 +124,7 @@ def open_file():
                 content = file.read()
             texteditor.delete("1.0", tk.END)
             texteditor.insert(tk.END, content)
-            check()
+            thread_check()
         except Exception as e:
             tk.messagebox.showerror("Помилка", f"Не вдалося відкрити файл: {e}")
 
@@ -127,7 +137,7 @@ def fix_all_mistakes(event=None):
         texteditor.tag_delete(tag)
     sugg_list.delete(0, tk.END)
     suggestions.clear()
-    check()
+    thread_check()
     if(len(suggestions)>0):
         fix_all_mistakes()
 
@@ -138,7 +148,7 @@ def replace_with(selected_suggestion, replacement):
         end_index = f"1.0+{suggestion[1]}c"
         texteditor.delete(start_index, end_index)
         texteditor.insert(start_index, replacement)
-        check()
+        thread_check()
 
 def suggestion_pick(event=None):
     selected = sugg_list.curselection()
@@ -167,7 +177,17 @@ def language_option_select(event=None):
     selected_option = language_selector.get()
     messagebox.showinfo("Grammar Checker", f"Please wait, this could take a while...")
     checker = language_tool_python.LanguageTool(language_codes[selected_option])
+    checker.check("Blank content with a mistaek")
     messagebox.showinfo("Grammar Checker", f"Language {selected_option} selected!")
+
+def delay_checker():
+    global check_id
+    if check_id:
+        texteditor.after_cancel(check_id)
+    check_id = texteditor.after(100, thread_check)
+
+def thread_check():
+    threading.Thread(target=check, daemon=True).start()
 
 root = tk.Tk()
 root.title("Grammar Checker")
@@ -197,7 +217,8 @@ editor_container = tk.Frame(root, bg="#FFF")
 editor_container.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
 
 texteditor = ScrolledText(editor_container, font="Arial 14", wrap=tk.WORD)
-texteditor.bind("<KeyRelease>", check)
+check_id = None
+texteditor.bind("<KeyRelease>", lambda event: delay_checker())
 texteditor.pack(expand=True, fill=tk.BOTH)
 
 sugg_container = tk.Frame(root, bg="#EEE")
