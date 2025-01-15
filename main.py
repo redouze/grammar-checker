@@ -1,12 +1,78 @@
 import json
 import tkinter as tk
-import re
+from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 from tkinter import filedialog, messagebox
 import language_tool_python
 
+language_codes = {
+    "English (US)": "en-US",
+    "English (GB)": "en-GB",
+    "English (Australia)": "en-AU",
+    "English (Canada)": "en-CA",
+    "English (New Zealand)": "en-NZ",
+    "German": "de-DE",
+    "German (Austria)": "de-AT",
+    "German (Switzerland)": "de-CH",
+    "Spanish": "es",
+    "Spanish (Spain)": "es-ES",
+    "Spanish (Mexico)": "es-MX",
+    "French": "fr",
+    "French (France)": "fr-FR",
+    "French (Canada)": "fr-CA",
+    "French (Belgium)": "fr-BE",
+    "French (Switzerland)": "fr-CH",
+    "Portuguese": "pt",
+    "Portuguese (Brazil)": "pt-BR",
+    "Portuguese (Portugal)": "pt-PT",
+    "Italian": "it",
+    "Italian (Italy)": "it-IT",
+    "Dutch": "nl",
+    "Dutch (Netherlands)": "nl-NL",
+    "Dutch (Belgium)": "nl-BE",
+    "Russian": "ru",
+    "Chinese (Simplified)": "zh-CN",
+    "Chinese (Traditional)": "zh-TW",
+    "Japanese": "ja",
+    "Polish": "pl",
+    "Ukrainian": "uk",
+    "Catalan": "ca",
+    "Esperanto": "eo",
+    "Danish": "da",
+    "Swedish": "sv",
+    "Norwegian": "no",
+    "Finnish": "fi",
+    "Greek": "el",
+    "Romanian": "ro",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Czech": "cs",
+    "Croatian": "hr",
+    "Serbian": "sr",
+    "Bulgarian": "bg",
+    "Icelandic": "is",
+    "Irish": "ga",
+    "Estonian": "et",
+    "Lithuanian": "lt",
+    "Latvian": "lv",
+    "Macedonian": "mk",
+    "Maltese": "mt",
+    "Tagalog": "tl",
+    "Hindi": "hi",
+    "Bengali": "bn",
+    "Malayalam": "ml",
+    "Tamil": "ta",
+    "Telugu": "te"
+}
+
 checker = language_tool_python.LanguageTool("en-US")
+checker.check("Blank content with a mistaek")
 suggestions = []
+
+def update_suggestions(match_reps):
+    dropdown_menu["menu"].delete(0, "end")
+    for option in match_reps:
+        dropdown_menu["menu"].add_command(label=option, command=lambda value=option: replacement_var.set(value))
 
 def check(event=None):
     content = texteditor.get("1.0", tk.END).strip()
@@ -17,7 +83,7 @@ def check(event=None):
     suggestions.clear()
 
     matches = checker.check(content)
-
+    
     for match in matches:
         start_pos = match.offset
         end_pos = start_pos + match.errorLength
@@ -26,10 +92,14 @@ def check(event=None):
         end_index = f"1.0+{end_pos}c"
 
         texteditor.tag_add("error", start_index, end_index)
-
         if match.replacements:
-            sugg_list.insert(tk.END, f"{(texteditor.get("1.0", tk.END).strip())[start_pos:end_pos]} -> {', '.join(match.replacements)}")
-            suggestions.append((start_pos, end_pos, match.replacements[0]))
+            sugg_list.insert(
+                tk.END,
+                f"{(texteditor.get('1.0', tk.END).strip())[start_pos:end_pos]} -> {', '.join(match.replacements)}"
+            )
+            suggestions.append((start_pos, end_pos, match.replacements))
+            replacement_var.set("Select an option")
+            update_suggestions(match.replacements)
 
     texteditor.tag_config("error", foreground="red")
 
@@ -58,21 +128,46 @@ def fix_all_mistakes(event=None):
     sugg_list.delete(0, tk.END)
     suggestions.clear()
     check()
+    if(len(suggestions)>0):
+        fix_all_mistakes()
 
-def replace_with_best(selected_suggestion):
-    if selected_suggestion != None:
+def replace_with(selected_suggestion, replacement):
+    if selected_suggestion is not None and replacement != "Select an option":
         suggestion = suggestions[selected_suggestion]
         start_index = f"1.0+{suggestion[0]}c"
         end_index = f"1.0+{suggestion[1]}c"
-        corrected_content = suggestion[2]
         texteditor.delete(start_index, end_index)
-        texteditor.insert(start_index, corrected_content)
+        texteditor.insert(start_index, replacement)
         check()
 
-def suggestion_pick():
-    if sugg_list.curselection():
-        return sugg_list.curselection()[0]
+def suggestion_pick(event=None):
+    selected = sugg_list.curselection()
+    if selected:
+        update_suggestions(suggestions[selected[0]][2])
+        return selected[0]
     return None
+
+def save_file(event=None):
+    file_path = filedialog.asksaveasfilename(
+        title="Save File",
+        defaultextension=".txt",
+        filetypes=(("Text Files", "*.txt"), ("All Files", "*.*"))
+    )
+    if file_path:
+        try:
+            with open(file_path, "w", encoding="utf-8") as file:
+                content = texteditor.get("1.0", tk.END).strip()
+                file.write(content)
+            messagebox.showinfo("Success", f"File saved as {file.name}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not save file: {e}")
+
+def language_option_select(event=None):
+    global checker
+    selected_option = language_selector.get()
+    messagebox.showinfo("Grammar Checker", f"Please wait, this could take a while...")
+    checker = language_tool_python.LanguageTool(language_codes[selected_option])
+    messagebox.showinfo("Grammar Checker", f"Language {selected_option} selected!")
 
 root = tk.Tk()
 root.title("Grammar Checker")
@@ -90,6 +185,14 @@ openfile_btn.pack(side=tk.LEFT, padx=10, pady=5)
 fix_btn = tk.Button(top_bar, text="Fix All Mistakes", command=lambda: fix_all_mistakes(), bg="#D5BA33", font="Arial 12")
 fix_btn.pack(side=tk.LEFT, padx=10, pady=5)
 
+savefile_btn = tk.Button(top_bar, text="Save File", command=save_file, bg="#D5BA33", font="Arial 12")
+savefile_btn.pack(side=tk.LEFT, padx=10, pady=5)
+
+language_selector = ttk.Combobox(top_bar, values=list(language_codes.keys()), state="readonly")
+language_selector.pack(side=tk.LEFT, padx=10, pady=5)
+language_selector.bind("<<ComboboxSelected>>", language_option_select)
+language_selector.set("English (US)")
+
 editor_container = tk.Frame(root, bg="#FFF")
 editor_container.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=10)
 
@@ -103,16 +206,26 @@ sugg_container.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
 sugg_btn_ctn = tk.Frame(sugg_container, bg="#EEE")
 sugg_btn_ctn.pack(fill=tk.X, padx=5, pady=(5, 10))
 
-best_btn = tk.Button(sugg_btn_ctn, text="Replace with Best Option",  command=lambda: replace_with_best(suggestion_pick()), bg="#D5BA33", font="Arial 12")
-best_btn.pack(side=tk.LEFT, padx=5)
+replacement_var = tk.StringVar()
+replacement_var.set("Replacement")
+dropdown_menu = tk.OptionMenu(sugg_btn_ctn, replacement_var, "No suggestion selected")
+dropdown_menu.pack(side=tk.LEFT, padx=5)
 
-showrepl_btn = tk.Button(sugg_btn_ctn, text="Show All Options", bg="#D5BA33", font="Arial 12")
-showrepl_btn.pack(side=tk.LEFT, padx=5)
+replace_btn = tk.Button(
+    sugg_btn_ctn,
+    text="Replace with Selected",
+    command=lambda: replace_with(suggestion_pick(), replacement_var.get()),
+    bg="#D5BA33",
+    font="Arial 12",
+)
+replace_btn.pack(side=tk.LEFT, padx=5)
 
 sugg_label = tk.Label(sugg_container, text="Suggestions", bg="#EEE", font="Arial 12 bold")
 sugg_label.pack(anchor=tk.N, pady=5)
 
 sugg_list = tk.Listbox(sugg_container, font="Arial 12", bg="#FFF")
+sugg_list.bind("<<ListboxSelect>>", suggestion_pick)
 sugg_list.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
 root.mainloop()
+checker.close()
