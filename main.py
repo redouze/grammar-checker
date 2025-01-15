@@ -20,7 +20,7 @@ def check(event=None):
 
     for match in matches:
         start_pos = match.offset
-        end_pos = match.offset + match.errorLength
+        end_pos = start_pos + match.errorLength
 
         start_index = f"1.0+{start_pos}c"
         end_index = f"1.0+{end_pos}c"
@@ -28,7 +28,7 @@ def check(event=None):
         texteditor.tag_add("error", start_index, end_index)
 
         if match.replacements:
-            sugg_list.insert(tk.END, f"{match.context[start_pos:end_pos]} -> {', '.join(match.replacements)}")
+            sugg_list.insert(tk.END, f"{(texteditor.get("1.0", tk.END).strip())[start_pos:end_pos]} -> {', '.join(match.replacements)}")
             suggestions.append((start_pos, end_pos, match.replacements[0]))
 
     texteditor.tag_config("error", foreground="red")
@@ -50,34 +50,29 @@ def open_file():
 
 def fix_all_mistakes(event=None):
     content = texteditor.get("1.0", tk.END).strip()
-
+    corrected_content = checker.correct(content)
+    texteditor.delete("1.0", tk.END)
+    texteditor.insert("1.0", corrected_content)
     for tag in texteditor.tag_names():
         texteditor.tag_delete(tag)
     sugg_list.delete(0, tk.END)
     suggestions.clear()
+    check()
 
-    matches = checker.check(content)
-
-    for match in matches:
-        start_pos = match.offset
-        end_pos = match.offset + match.errorLength 
-
-        start_index = texteditor.index(f"1.0+{start_pos}c")
-        end_index = texteditor.index(f"1.0+{end_pos}c")
-
-        if match.replacements:
-            texteditor.delete(start_index, end_index)
-            texteditor.insert(start_index, match.replacements[0])
-    
 def replace_with_best(selected_suggestion):
-    if selected_suggestion:
-        if suggestions[selected_suggestion]:
-            suggestion = suggestions[selected_suggestion]
-            texteditor.delete(suggestion[0], suggestion[1])
-            texteditor.insert(suggestion[0], suggestion[2])
+    if selected_suggestion != None:
+        suggestion = suggestions[selected_suggestion]
+        start_index = f"1.0+{suggestion[0]}c"
+        end_index = f"1.0+{suggestion[1]}c"
+        corrected_content = suggestion[2]
+        texteditor.delete(start_index, end_index)
+        texteditor.insert(start_index, corrected_content)
+        check()
 
 def suggestion_pick():
-    return (sugg_list.curselection())[0]
+    if sugg_list.curselection():
+        return sugg_list.curselection()[0]
+    return None
 
 root = tk.Tk()
 root.title("Grammar Checker")
