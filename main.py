@@ -6,6 +6,7 @@ from tkinter import filedialog, messagebox
 import language_tool_python
 
 checker = language_tool_python.LanguageTool("en-US")
+suggestions = []
 
 def check(event=None):
     content = texteditor.get("1.0", tk.END).strip()
@@ -13,6 +14,7 @@ def check(event=None):
     for tag in texteditor.tag_names():
         texteditor.tag_delete(tag)
     sugg_list.delete(0, tk.END)
+    suggestions.clear()
 
     matches = checker.check(content)
 
@@ -27,6 +29,7 @@ def check(event=None):
 
         if match.replacements:
             sugg_list.insert(tk.END, f"{match.context[start_pos:end_pos]} -> {', '.join(match.replacements)}")
+            suggestions.append((start_pos, end_pos, match.replacements[0]))
 
     texteditor.tag_config("error", foreground="red")
 
@@ -51,12 +54,13 @@ def fix_all_mistakes(event=None):
     for tag in texteditor.tag_names():
         texteditor.tag_delete(tag)
     sugg_list.delete(0, tk.END)
+    suggestions.clear()
 
     matches = checker.check(content)
 
     for match in matches:
         start_pos = match.offset
-        end_pos = match.offset + match.errorLength
+        end_pos = match.offset + match.errorLength 
 
         start_index = texteditor.index(f"1.0+{start_pos}c")
         end_index = texteditor.index(f"1.0+{end_pos}c")
@@ -64,7 +68,16 @@ def fix_all_mistakes(event=None):
         if match.replacements:
             texteditor.delete(start_index, end_index)
             texteditor.insert(start_index, match.replacements[0])
+    
+def replace_with_best(selected_suggestion):
+    if selected_suggestion:
+        if suggestions[selected_suggestion]:
+            suggestion = suggestions[selected_suggestion]
+            texteditor.delete(suggestion[0], suggestion[1])
+            texteditor.insert(suggestion[0], suggestion[2])
 
+def suggestion_pick():
+    return (sugg_list.curselection())[0]
 
 root = tk.Tk()
 root.title("Grammar Checker")
@@ -95,7 +108,7 @@ sugg_container.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=10)
 sugg_btn_ctn = tk.Frame(sugg_container, bg="#EEE")
 sugg_btn_ctn.pack(fill=tk.X, padx=5, pady=(5, 10))
 
-best_btn = tk.Button(sugg_btn_ctn, text="Replace with Best Option", bg="#D5BA33", font="Arial 12")
+best_btn = tk.Button(sugg_btn_ctn, text="Replace with Best Option",  command=lambda: replace_with_best(suggestion_pick()), bg="#D5BA33", font="Arial 12")
 best_btn.pack(side=tk.LEFT, padx=5)
 
 showrepl_btn = tk.Button(sugg_btn_ctn, text="Show All Options", bg="#D5BA33", font="Arial 12")
