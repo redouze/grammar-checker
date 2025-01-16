@@ -1,4 +1,4 @@
-# grammar-check-gui
+# grammar-checker
 
 GUI для перевірки правильності граматики
 
