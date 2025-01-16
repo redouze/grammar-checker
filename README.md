@@ -18,6 +18,11 @@ pip install language-tool-python
 python main.py
 ```
 
+# Використані джерела і інструменти
+
+- [language-tool-python](https://pypi.org/project/language-tool-python/)
+- [Tkinter](https://docs.python.org/3/library/tkinter.html)
+
 # Фічи
 
 - Підтримка багатьох мов
